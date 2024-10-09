@@ -1,6 +1,6 @@
 version: 0.0.1-alpha
 file: liveView.asar
 url: https://github.com/slkzgm/swex-liveView-plugin/releases/download/0.0.1-alpha/liveView.asar
-sha512: cb71a4a7507ca1a0fad5a7f24d4aad75346caf4479547a11ff1b1a7881df4752642c4496f29d7717c1ba79e1f355a0034e818c18c4e9d8d0005d16bce4e5ac87
-size: 80843376
-releaseDate: 2024-10-09T20:32:16Z
+sha512: d542749552f3e49390c0c663390c59c3e0ee721dc34a22c63f1320d9234b9d423212a074daf9479ed892f3bbbe5199b0b5274a9ac2226152eecf21c26af71f25
+size: 80870138
+releaseDate: 2024-10-09T20:42:42Z
