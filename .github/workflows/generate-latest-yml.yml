@@ -1,0 +1,83 @@
+name: Generate latest.yml
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  generate-latest-yml:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Switch to gh-pages branch
+        run: |
+          git fetch origin gh-pages:gh-pages || git checkout --orphan gh-pages
+          git checkout gh-pages
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Get release asset URL
+        id: get_asset_url
+        run: |
+          ASSET_URL=$(curl -sL \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/releases/${{ github.event.release.id }} \
+            | jq -r '.assets[] | select(.name == "liveView.asar") | .url')
+          if [ -z "$ASSET_URL" ]; then
+            echo "Asset not found!"
+            exit 1
+          fi
+          echo "asset_url=$ASSET_URL" >> $GITHUB_OUTPUT
+
+      - name: Download release asset
+        run: |
+          curl -L -H "Accept: application/octet-stream" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          "${{ steps.get_asset_url.outputs.asset_url }}" \
+          -o liveView.asar
+
+      - name: Compute SHA512 hash and size
+        id: compute_hash
+        run: |
+          HASH=$(sha512sum liveView.asar | awk '{ print $1 }')
+          echo "sha512=$HASH" >> $GITHUB_OUTPUT
+          SIZE=$(stat -c%s "liveView.asar")
+          echo "size=$SIZE" >> $GITHUB_OUTPUT
+
+      - name: Generate latest.yml
+        run: |
+          VERSION=${{ github.event.release.tag_name }}
+          FILE_NAME="liveView.asar"
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.event.release.tag_name }}/${FILE_NAME}"
+          SHA512="${{ steps.compute_hash.outputs.sha512 }}"
+          SIZE="${{ steps.compute_hash.outputs.size }}"
+          RELEASE_DATE="${{ github.event.release.published_at }}"
+
+          cat <<EOT > latest.yml
+          version: $VERSION
+          file: $FILE_NAME
+          url: $DOWNLOAD_URL
+          sha512: $SHA512
+          size: $SIZE
+          releaseDate: $RELEASE_DATE
+          EOT
+
+          cat latest.yml
+
+      - name: Commit latest.yml to gh-pages branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add latest.yml
+          git commit -m "Update latest.yml for version ${{ github.event.release.tag_name }}"
+          git push origin gh-pages
